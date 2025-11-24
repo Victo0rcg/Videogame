@@ -194,73 +194,6 @@ El proyecto implementa varios patrones de diseño para mantener una arquitectura
 - **Propósito**: Abstraer acceso a datos y operaciones de base de datos
 - **Beneficios**: Separación de lógica de negocio y persistencia, facilita testing
 
-## 🛠️ Tecnologías Utilizadas
-
-- **Python 3.7+**: Lenguaje de programación principal
-- **Pygame 2.6+**: Framework para desarrollo de videojuegos e interfaz gráfica
-- **OpenCV (cv2) 4.5+**: Procesamiento de imágenes y captura de video
-- **MediaPipe 0.8+**: Framework de Google para detección de gestos y poses
-- **SQLite3**: Base de datos embebida (incluida en Python)
-- **bcrypt**: Hash seguro de contraseñas
-
-## 📦 Dependencias
-
-El proyecto requiere las siguientes dependencias Python:
-
-```python
-pygame>=2.0.0          # Interfaz gráfica y gestión de eventos
-opencv-python>=4.5.0  # Procesamiento de video y captura de cámara
-mediapipe>=0.8.0       # Detección de gestos de mano
-bcrypt>=4.0.0          # Hash seguro de contraseñas
-pytest>=7.0.0          # Framework de testing (desarrollo)
-pytest-cov>=3.0.0      # Cobertura de código (desarrollo)
-```
-
-**Nota**: `sqlite3` es parte de la biblioteca estándar de Python y no requiere instalación.
-
-### Instalación de Dependencias
-
-```bash
-pip install -r requirements.txt
-```
-
-O usando un entorno virtual (recomendado):
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-# o
-source .venv/bin/activate  # Linux/Mac
-
-pip install -r requirements.txt
-```
-
-## 🚀 Instalación
-
-1. **Clonar o descargar el proyecto**
-   ```bash
-   cd "Piedra, Papel o Tijeras"
-   ```
-
-2. **Crear y activar entorno virtual** (recomendado)
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate  # Windows
-   # o
-   source .venv/bin/activate  # Linux/Mac
-   ```
-
-3. **Instalar dependencias**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Verificar que la cámara web esté disponible**
-
-5. **Ejecutar el juego**
-   ```bash
-   python main.py
-   ```
 
 ## 🎮 Uso
 
@@ -769,7 +702,7 @@ El sistema utiliza SQLite como base de datos embebida, lo que significa:
    - Establece `current_user` si credenciales válidas
 3. Si exitoso, retorna a menú con sesión activa
 
-### Flujo de Guardado de Estadísticas
+### Flujo de Guardado de Historial
 
 1. Al finalizar partida en `GameScreen`:
    - Se determina si jugador ganó o perdió
@@ -818,101 +751,73 @@ MAPA_PUNTAS_DEDOS = {
 }
 ```
 
-### Personalización
+## 🛠️ Tecnologías Utilizadas
 
-Para modificar el comportamiento del juego, edita `config.py`:
+- **Python 3.7+**: Lenguaje de programación principal
+- **Pygame 2.6+**: Framework para desarrollo de videojuegos e interfaz gráfica
+- **OpenCV (cv2) 4.5+**: Procesamiento de imágenes y captura de video
+- **MediaPipe 0.8+**: Framework de Google para detección de gestos y poses
+- **SQLite3**: Base de datos embebida (incluida en Python)
+- **bcrypt**: Hash seguro de contraseñas
 
-- **Dificultad**: Cambiar `PUNTOS_PARA_GANAR`
-- **Velocidad**: Ajustar `VELOCIDAD_ANIMACION` y `DURACION_EFECTO_COLISION`
-- **Colores**: Modificar constantes de color
-- **Tamaños**: Ajustar dimensiones de elementos UI
+## 📦 Dependencias
 
-## 💻 Requisitos del Sistema
+El proyecto requiere las siguientes dependencias Python:
 
-### Hardware
-- **Procesador**: Cualquier procesador moderno (recomendado: 2+ GHz)
-- **RAM**: Mínimo 4 GB (recomendado: 8 GB)
-- **Cámara Web**: Cámara USB o integrada funcional
-- **Pantalla**: Resolución mínima 1280x720
+```python
+pygame>=2.0.0          # Interfaz gráfica y gestión de eventos
+opencv-python>=4.5.0  # Procesamiento de video y captura de cámara
+mediapipe>=0.8.0       # Detección de gestos de mano
+bcrypt>=4.0.0          # Hash seguro de contraseñas
+pytest>=7.0.0          # Framework de testing (desarrollo)
+pytest-cov>=3.0.0      # Cobertura de código (desarrollo)
+```
 
-### Software
-- **Sistema Operativo**: Windows, Linux o macOS
-- **Python**: Versión 3.7 o superior
-- **Cámara**: Drivers de cámara instalados y funcionando
+**Nota**: `sqlite3` es parte de la biblioteca estándar de Python y no requiere instalación.
 
-### Dependencias del Sistema
-- **OpenCV**: Requiere codecs de video (generalmente incluidos)
-- **MediaPipe**: Requiere bibliotecas de procesamiento de imágenes
-- **Pygame**: Requiere bibliotecas de audio (generalmente incluidas)
+### Instalación de Dependencias
 
-## 🐛 Solución de Problemas
+```bash
+pip install -r requirements.txt
+```
 
-### La cámara no se detecta
-- Verifica que la cámara esté conectada y funcionando
-- Cierra otras aplicaciones que puedan estar usando la cámara
-- En Linux, verifica permisos de acceso a `/dev/video0`
+O usando un entorno virtual (recomendado):
 
-### Los gestos no se detectan correctamente
-- Asegúrate de tener buena iluminación
-- Mantén la mano frente a la cámara con suficiente espacio
-- Evita fondos muy complejos o similares al color de la piel
+```bash
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+# o
+source .venv/bin/activate  # Linux/Mac
 
-### El juego va lento
-- Reduce el tamaño de la ventana de cámara en `config.py`
-- Cierra otras aplicaciones que consuman recursos
-- Verifica que la cámara no esté capturando a muy alta resolución
+pip install -r requirements.txt
+```
 
-### Los sonidos no se reproducen
-- Verifica que los archivos `.wav` existan en `Resources/`
-- Comprueba que el sistema de audio funcione correctamente
-- El juego continuará funcionando sin sonidos si faltan archivos
+## 🚀 Instalación
 
-### Error de base de datos
-- Verifica permisos de escritura en el directorio del proyecto
-- Asegúrate de que SQLite esté disponible (incluido en Python)
-- Revisa que `gestor_juego.db` no esté bloqueado por otra aplicación
+1. **Clonar o descargar el proyecto**
+   ```bash
+   cd "Piedra, Papel o Tijeras"
+   ```
 
-## 🔄 Estado del Proyecto
+2. **Crear y activar entorno virtual** (recomendado)
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate  # Windows
+   # o
+   source .venv/bin/activate  # Linux/Mac
+   ```
 
-### Funcionalidades Implementadas ✅
-- ✅ Detección de gestos en tiempo real
-- ✅ Sistema de juego completo con rondas
-- ✅ Animaciones de colisión
-- ✅ Sistema de sonido
-- ✅ Múltiples pantallas con navegación
-- ✅ HUD informativo
-- ✅ Retorno automático al menú
-- ✅ Sistema de autenticación completo
-- ✅ Sistema de registro de usuarios
-- ✅ Persistencia de datos con SQLite
-- ✅ Guardado automático de estadísticas
-- ✅ Historial público de usuarios
-- ✅ Hash seguro de contraseñas (bcrypt)
+3. **Instalar dependencias**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### Mejoras Futuras 🚧
-- 🚧 Estrategias de IA más avanzadas (análisis de patrones)
-- 🚧 Sistema de rankings/leaderboards
-- 🚧 Modo multijugador local
-- 🚧 Exportación de estadísticas
-- 🚧 Personalización de avatares
+4. **Verificar que la cámara web esté disponible**
 
-## 📄 Licencia
+5. **Ejecutar el juego**
+   ```bash
+   python main.py
+   ```
 
-Este proyecto es de código abierto y está disponible para uso educativo y personal.
 
-## 👥 Contribuciones
 
-Las contribuciones son bienvenidas. Por favor:
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## 📧 Contacto
-
-Para preguntas o sugerencias sobre el proyecto, por favor abre un issue en el repositorio.
-
----
-
-**¡Disfruta jugando Piedra, Papel o Tijeras con Visión Artificial!** 🎮✋👊✌️
