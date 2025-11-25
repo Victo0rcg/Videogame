@@ -1,0 +1,561 @@
+# Descripción Detallada de Clases y Relaciones (UML 2.5)
+
+Este documento complementa el diagrama de clases describiendo en detalle cada clase del proyecto "Piedra, Papel o Tijeras". Incluye:
+1. Propósito / Responsabilidad
+2. Atributos (nombre, tipo inferido, visibilidad, valor por defecto, descripción)
+3. Métodos principales (firma simplificada, descripción, notas de patrón si aplica)
+4. Relaciones y asociaciones (tipo, multiplicidad, dirección, justificación)
+5. Patrones de diseño aplicados
+
+Convenciones de visibilidad: `+` público, `-` privado (atributos internos marcados como de implementación aunque en Python no se fuerzan), `#` protegido (no se usa en el código actual). Tipos inferidos según uso en el código.
+
+---
+
+## Índice de Clases
+
+- GameApp
+- ResourceManager (Singleton)
+- SoundManager
+- ScreenManager
+- Screen (Abstract Base) / Boton (UI Component)
+- StartScreen
+- MenuScreen
+- InstructionsScreen
+- GameScreen
+- LoginScreen
+- RegisterScreen
+- ProfileScreen
+- GameLogic
+- AIStrategy (Abstract) / RandomStrategy
+- Score (Dataclass)
+- RoundResult (Dataclass)
+- HandDetector
+- AuthManager (Singleton)
+- Database
+- UsuarioRepository
+
+---
+
+## GameApp
+**Propósito**: Punto de entrada de la aplicación. Inicializa Pygame, carga recursos y lanza el ciclo principal delegándolo a `ScreenManager`.
+
+### Atributos
+| Nombre | Tipo | Visibilidad | Defecto | Descripción |
+|--------|------|-------------|---------|-------------|
+| screen | pygame.Surface | + | creado | Superficie principal de renderizado |
+| clock | pygame.time.Clock | + | creado | Control de FPS y delta time |
+| resource_manager | ResourceManager | + | instancia singleton | Gestor central de imágenes |
+| sound_manager | SoundManager | + | instancia | Gestor de efectos de sonido |
+| resources | dict | + | construido | Diccionario combinado de recursos (imágenes, sonidos) |
+| screen_manager | ScreenManager | + | instancia | Orquestador de pantallas |
+
+### Métodos Principales
+| Método | Descripción | Notas |
+|--------|-------------|-------|
+| __init__() | Inicializa Pygame y todos los gestores | Composición de gestores |
+| run() | Ejecuta el ciclo principal delegando a `screen_manager.run()` | Template delegación |
+| cleanup() | Libera recursos y cierra Pygame | Gestión de cierre |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Dirección | Justificación |
+|------|---------|---------------|-----------|---------------|
+| Composición | ResourceManager | 1 | GameApp → ResourceManager | Vida controlada durante ejecución |
+| Composición | SoundManager | 1 | GameApp → SoundManager | Inicialización y uso de sonidos |
+| Composición | ScreenManager | 1 | GameApp → ScreenManager | Control del bucle principal |
+
+### Patrones
+- Facade implícito para inicialización del sistema.
+
+---
+
+## ResourceManager (Singleton)
+**Propósito**: Cargar y exponer recursos gráficos (fondos e imágenes de jugadas) una sola vez.
+
+### Atributos
+| Nombre | Tipo | Visib. | Defecto | Descripción |
+|--------|------|--------|---------|-------------|
+| _instance | ResourceManager | - (class) | None | Instancia singleton |
+| _initialized | bool | - | False | Bandera de inicialización |
+| _images | dict[str, pygame.Surface|dict] | - | {} | Almacén de imágenes y sub-diccionarios |
+| _loaded | bool | - | False | Indica si ya se cargaron recursos |
+
+### Métodos
+| Método | Descripción | Notas |
+|--------|-------------|-------|
+| __new__() | Garantiza instancia única | Singleton |
+| __init__() | Inicialización condicional | Evita recarga |
+| load_all() | Carga todos los fondos y sprites | Idempotente |
+| get_image(key) | Recupera imagen por clave | Acceso directo |
+| get_ai_images() | Devuelve dict jugadas IA | Organización por rol |
+| get_player_images() | Devuelve dict jugadas jugador | |
+| get_background(name) | Fallback para fondos de pantallas | Robustez |
+| to_dict() | Exporta estructura de recursos | Compatibilidad con pantallas |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Uso | Screen / GameScreen / etc. | 1..* pantallas usan 1 gestor | Acceso a imágenes compartidas |
+| Usado por (Composición) | GameApp | 1 | Creado y gestionado por aplicación |
+
+### Patrones
+- Singleton.
+
+---
+
+## SoundManager
+**Propósito**: Cargar y reproducir efectos de sonido.
+
+### Atributos
+| Nombre | Tipo | Visib. | Defecto | Descripción |
+|--------|------|--------|---------|-------------|
+| sonidos | dict[str, pygame.mixer.Sound|None] | - | {} | Catálogo de efectos opcionales |
+
+### Métodos
+| Método | Descripción | Notas |
+|--------|-------------|-------|
+| __init__() | Inicializa mixer y carga sonidos | Manejo silencioso de errores |
+| cargar_sonidos() | Intenta cargar cada archivo | Resiliente ante faltantes |
+| reproducir(nombre, volumen=1.0) | Reproduce efecto si existe | Falla silenciosa |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Composición | GameApp | 1 | Creado al iniciar aplicación |
+| Asociación opcional | Boton | 0..* Botones → 0..1 SoundManager | Sonido al clic |
+| Uso | GameScreen | 1 | Efectos de ronda, colisión y fin |
+
+---
+
+## ScreenManager
+**Propósito**: Gestionar el estado de la aplicación mostrando la pantalla activa y realizando transiciones.
+
+### Atributos
+| Nombre | Tipo | Visib. | Defecto | Descripción |
+|--------|------|--------|---------|-------------|
+| screen | pygame.Surface | - | provisto | Superficie de render |
+| clock | pygame.time.Clock | - | provisto | Control de delta/FPS |
+| resources | dict | - | provisto | Recursos compartidos |
+| current_screen | Optional[Screen] | - | None | Pantalla activa |
+| current_state | str | - | 'inicio' | Estado lógico |
+| screens | dict[str, Screen] | - | {...} | Registro de pantallas |
+
+### Métodos
+| Método | Descripción | Notas |
+|--------|-------------|-------|
+| __init__() | Crea instancias de pantallas | Preparación estado inicial |
+| change_state(new_state) | Cambia pantalla y llama enter/exit | State transiciones |
+| run() | Bucle principal de delegación | Orquesta ciclo de pantallas |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Composición | StartScreen..ProfileScreen | 1 gestor → 1..* pantallas | Vida controlada |
+| Uso | GameApp | 1 | Llamado desde run principal |
+
+### Patrones
+- State (administrador de estados concretos en conjunto con subclases de `Screen`).
+
+---
+
+## Screen (Abstract Base Class)
+**Propósito**: Definir interfaz y ciclo de vida de una pantalla (Template Method en `run`).
+
+### Atributos
+| Nombre | Tipo | Visib. | Descripción |
+|--------|------|--------|-------------|
+| screen | pygame.Surface | - | Superficie de dibujo |
+| clock | pygame.time.Clock | - | Control de tiempo |
+| resources | dict | - | Acceso a imágenes/sonidos |
+| running | bool | - | Control de loop interno |
+
+### Métodos
+| Método | Descripción | Notas |
+|--------|-------------|-------|
+| enter() | Reinicia estado de ejecución | Hook Template |
+| exit() | Marca fin de ejecución | Hook Template |
+| handle_event(event) | Procesa eventos | Abstract |
+| update(dt) | Actualiza lógica interna | Abstract |
+| render() | Dibuja elementos | Abstract |
+| run() | Orquesta: eventos→update→render | Template Method |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Herencia | Subclases concretas | 1..* | Especialización |
+| Uso | ResourceManager | 0..1 | Fondo/imagenes vía resources |
+| Composición | Boton | 0..* | Elementos UI |
+
+### Patrones
+- Template Method.
+
+---
+
+## Boton
+**Propósito**: Componente UI reutilizable con detección de hover y clic.
+
+### Atributos
+| Nombre | Tipo | Visib. | Descripción |
+|--------|------|--------|-------------|
+| texto | str | - | Etiqueta mostrada |
+| fuente | pygame.font.Font | - | Fuente usada |
+| color_normal | tuple[int,int,int] | - | Color base |
+| color_hover | tuple[int,int,int] | - | Color al pasar ratón |
+| color_sombra | tuple[int,int,int] | - | Sombra inferior |
+| sound_manager | Optional[SoundManager] | - | Reproduce sonido clic |
+| rectangulo | pygame.Rect | - | Área interactiva |
+| border_radius | int | - | Radio bordes |
+| sombra_offset | int | - | Desplazamiento sombra |
+
+### Métodos
+| Método | Descripción | Notas |
+|--------|-------------|-------|
+| dibujar(superficie) | Renderiza sombra, fondo y texto | Cambia color según hover |
+| verificar_clic(event) | Devuelve True si clic válido | Llama sonido si disponible |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Asociación opcional | SoundManager | 0..1 | Reproducir sonidos de interfaz |
+| Composición inversa | Screen | 0..* Botones dentro de pantalla | Control de vida por pantalla |
+
+---
+
+## StartScreen / MenuScreen / InstructionsScreen / LoginScreen / RegisterScreen / ProfileScreen
+**Propósito**: Pantallas estáticas o de interacción específicas del flujo de usuario.
+
+### Atributos Comunes (además de los heredados de Screen)
+| Clase | Atributos específicos |
+|-------|-----------------------|
+| StartScreen | button, background |
+| MenuScreen | auth_manager, button_play, button_instructions, button_stats, button_profile, button_exit, background |
+| InstructionsScreen | button_back, background |
+| LoginScreen | auth_manager, username_text, password_text, active_field, message, message_color, button_login, button_register, button_back, background, username_rect, password_rect |
+| RegisterScreen | auth_manager, username_text, password_text, confirm_password_text, active_field, message, message_color, button_register, button_login, background, username_rect, password_rect, confirm_password_rect |
+| ProfileScreen | auth_manager, user_repository, search_username, search_active, search_cursor_visible, cursor_blink_time, username, games_played, wins, losses, user_found, error_message, button_search, button_back, button_logout, background |
+
+### Métodos Principales Comunes
+| Método | Descripción |
+|--------|-------------|
+| handle_event(event) | Procesa entradas para transición / formulario |
+| update(dt) | Actualizaciones mínimas (ej. parpadeo cursor en Profile) |
+| render() | Dibuja fondo y componentes UI |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Pantallas |
+|------|---------|---------------|-----------|
+| Uso | AuthManager | 0..1 (algunas) | Gestión de sesión y stats |
+| Uso | UsuarioRepository | ProfileScreen 1 | Consulta de historial público |
+| Composición | Boton | 1..* | Interacción UI |
+| Uso | ResourceManager | 1 | Fondos/imágenes |
+| Uso | SoundManager | 0..1 | Sonidos de botones |
+
+---
+
+## GameScreen
+**Propósito**: Pantalla de juego activo con captura de video, detección de gestos y lógica de rondas.
+
+### Atributos (además de los heredados)
+| Nombre | Tipo | Descripción |
+|--------|------|-------------|
+| background | pygame.Surface | Fondo principal |
+| ai_images | dict[str, pygame.Surface] | Sprites jugadas IA |
+| player_images | dict[str, pygame.Surface] | Sprites jugadas jugador |
+| sound_manager | Optional[SoundManager] | Efectos de ronda |
+| video_capture | cv2.VideoCapture | Fuente de cámara |
+| detector | HandDetector | Detección de gestos |
+| game_logic | GameLogic | Reglas del juego |
+| score | Score | Puntuaciones actuales |
+| game_finished | bool | Indicador fin de partida |
+| winner_text | str | Mensaje final |
+| game_end_time | int | Timestamp inicio espera post-fin |
+| end_sound_played | bool | Control de sonido fin |
+| _should_return_to_menu | bool | Flag retorno automático |
+| _game_saved | bool | Flag guardado stats |
+| round_active | bool | Ronda en progreso |
+| show_results | bool | Mostrar resultado ronda |
+| countdown_start_time | int | Timestamp inicio cuenta regresiva |
+| countdown_number | int|str | Número o texto '¡YA!' |
+| ai_move | Optional[str] | Jugada IA última ronda |
+| player_move | Optional[str] | Jugada jugador última ronda |
+| ai_image | Optional[pygame.Surface] | Imagen jugada IA |
+| player_final_image | Optional[pygame.Surface] | Imagen jugada jugador fija |
+| current_player_move | Optional[str] | Gesto detectado en frame actual |
+| animating_collision | bool | Animación de choque activa |
+| collision_detected | bool | Choque ya detectado |
+| animation_start_time | int | Inicio animación |
+| collision_time | int | Momento colisión |
+| ai_animated_pos | list[float] | Coordenadas animación IA |
+| player_animated_pos | list[float] | Coordenadas animación jugador |
+| pending_winner | Optional[str] | Resultado precalculado |
+
+### Métodos Principales
+| Método | Descripción | Notas |
+|--------|-------------|-------|
+| enter()/exit() | Inicializa/libera cámara y estado | Ciclo de vida |
+| handle_event(event) | ESC → menú, SPACE → iniciar ronda | Control input |
+| update(dt) | Cuenta regresiva, animación, verificación fin | Lógica temporal |
+| render() | Dibuja HUD, cámara, animaciones y mensajes | Presentación |
+| run() | Extiende `Screen.run()` para retorno menú tras fin | Template override |
+| _start_round() | Prepara nueva ronda | Interno |
+| _capture_moves() | Obtiene jugadas y arranca animación | Integra detector + lógica |
+| _update_collision_animation() | Avanza animación y aplica ganador | Sincroniza score |
+| _render_collision_animation() / _render_static_images() | Dibujo según estado | Separación visual |
+| _draw_hud()/ _draw_status_messages() | HUD y mensajes de jugador | Modularización |
+| _save_game_stats() | Actualiza historial vía AuthManager | Persistencia condicional |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Composición | Score | 1 | Propiedad interna de partida |
+| Uso | HandDetector | 1 | Captura gestos |
+| Uso | GameLogic | 1 | Determinar ganador |
+| Uso | AuthManager | 0..1 | Guardar estadísticas si autenticado |
+| Uso | SoundManager | 0..1 | Efectos audio |
+| Uso | ResourceManager | 1 | Imágenes para sprites |
+
+---
+
+## GameLogic
+**Propósito**: Implementar reglas de Piedra-Papel-Tijera y determinar fin de partida.
+
+### Atributos
+| Nombre | Tipo | Descripción |
+|--------|------|-------------|
+| ai_strategy | AIStrategy | Estrategia para jugada IA |
+
+### Métodos
+| Método | Descripción |
+|--------|-------------|
+| choose_ai_move() | Delegado a estrategia IA |
+| determine_round_winner(player_move, ai_move) | Evalúa ganador de ronda |
+| check_game_end(score) | Verifica si alguno alcanzó puntos para ganar |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Strategy | AIStrategy | 1 | Delegación elección movimiento |
+| Uso | RandomStrategy | 1 (por defecto) | Implementación concreta inicial |
+
+### Patrones
+- Strategy.
+
+---
+
+## AIStrategy / RandomStrategy
+**Propósito**: Definir interfaz para estrategias de elección IA y una implementación aleatoria.
+
+### Métodos
+| Método | Descripción |
+|--------|-------------|
+| choose_move() | Debe devolver 'rock' | 'paper' | 'scissors' |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Herencia | RandomStrategy → AIStrategy | 1 | Implementación concreta |
+| Uso | GameLogic → AIStrategy | 1 | Dependencia polimórfica |
+
+---
+
+## Score (dataclass)
+**Propósito**: Contener puntuaciones de jugador e IA.
+
+### Atributos
+| Nombre | Tipo | Defecto | Descripción |
+|--------|------|---------|-------------|
+| jugador | int | 0 | Puntos jugador |
+| ia | int | 0 | Puntos IA |
+
+### Métodos
+| Método | Descripción |
+|--------|-------------|
+| reset() | Reinicia ambos contadores |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Composición | GameScreen | 1 | Score pertenece a una partida |
+
+---
+
+## RoundResult (dataclass)
+**Propósito**: Representar resultado de una ronda individual.
+
+### Atributos
+| Nombre | Tipo | Descripción |
+|--------|------|-------------|
+| player_move | Optional[str] | Jugada jugador o None |
+| ai_move | str | Jugada IA |
+| winner | str | 'jugador' | 'ia' | 'empate' |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Creación | GameLogic | 1 | Devuelto por lógica de ronda |
+
+---
+
+## HandDetector
+**Propósito**: Detectar gestos (rock/paper/scissors) usando MediaPipe.
+
+### Atributos
+| Nombre | Tipo | Descripción |
+|--------|------|-------------|
+| mp_manos | módulo MediaPipe | Acceso a modelos de manos |
+| detector_manos | Optional[Hands] | Instancia activa |
+| utilidades_dibujo_mp | drawing_utils | Render landmarks |
+| max_hands | int | Máx manos detectadas |
+| detection_confidence | float | Umbral confianza |
+| _started | bool | Estado inicialización |
+
+### Métodos
+| Método | Descripción |
+|--------|-------------|
+| start() | Inicializa Hands si no iniciado |
+| procesar_frame(frame) | Detecta gesto y dibuja landmarks |
+| stop() | Libera recursos |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Uso | GameScreen | 1 | Captura gestos para ronda |
+
+---
+
+## AuthManager (Singleton)
+**Propósito**: Gestionar sesión y actualizar estadísticas del usuario autenticado.
+
+### Atributos
+| Nombre | Tipo | Descripción |
+|--------|------|-------------|
+| _instance | AuthManager | Instancia singleton |
+| _initialized | bool | Previene doble init |
+| database | Database | Acceso SQLite |
+| user_repository | UsuarioRepository | Operaciones CRUD usuario |
+| current_user | Optional[dict] | Usuario autenticado |
+
+### Métodos
+| Método | Descripción |
+|--------|-------------|
+| register(username, password) | Crea cuenta y autentica |
+| login(username, password) | Autentica usuario existente |
+| logout() | Cierra sesión |
+| is_authenticated() | Estado de autenticación |
+| get_current_username() | Obtiene nombre actual |
+| update_stats(wins=0, losses=0) | Actualiza contadores + BD |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Composición | UsuarioRepository | 1 | Interno para operaciones |
+| Uso | Database | 1 | Repositorio accede a conexiones |
+| Uso | GameScreen | 0..1 | Guardar estadísticas partida |
+| Uso | Menu/Login/Register/Profile Screens | 0..1 | Mostrar/gestionar sesión |
+
+### Patrones
+- Singleton.
+
+---
+
+## Database
+**Propósito**: Abstraer conexión SQLite y creación de tablas.
+
+### Atributos
+| Nombre | Tipo | Descripción |
+|--------|------|-------------|
+| db_path | str | Ruta archivo BD |
+
+### Métodos
+| Método | Descripción |
+|--------|-------------|
+| conectar() | Retorna conexión SQLite |
+| _crear_tablas() | Crea tabla usuarios si falta |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Uso | UsuarioRepository | 1 | Fuente de conexiones |
+| Uso | AuthManager | 1 | Disponibilidad BD al iniciar sesión |
+
+---
+
+## UsuarioRepository
+**Propósito**: Operaciones CRUD y consulta sobre usuarios.
+
+### Atributos
+| Nombre | Tipo | Descripción |
+|--------|------|-------------|
+| database | Database | Fuente de conexión |
+
+### Métodos
+| Método | Descripción |
+|--------|-------------|
+| crear_usuario(nombre, contraseña) | Inserta usuario nuevo (bcrypt) |
+| login(nombre, contraseña) | Verifica hash bcrypt |
+| sumar_ganada(nombre) | Incrementa partidas ganadas |
+| sumar_perdida(nombre) | Incrementa partidas perdidas |
+| obtener_estadisticas(nombre) | Devuelve dict simple |
+| usuario_existe(nombre) | Verifica existencia |
+| obtener_usuario(nombre) | Info completa usuario |
+
+### Relaciones
+| Tipo | Destino | Multiplicidad | Justificación |
+|------|---------|---------------|---------------|
+| Asociación | Database | 1 | Necesaria para queries |
+| Uso | AuthManager | 1 | Gestión de sesión y stats |
+| Uso | ProfileScreen | 1 | Consulta pública de historial |
+
+---
+
+## Resumen Global de Relaciones
+
+| Origen | Destino | Tipo | Multiplicidad | Nota |
+|--------|---------|------|--------------|------|
+| GameApp | ResourceManager | Composición | 1 | Inicializa y controla vida |
+| GameApp | SoundManager | Composición | 1 | Igual anterior |
+| GameApp | ScreenManager | Composición | 1 | Orquesta pantallas |
+| ScreenManager | Screen(subclases) | Composición | 1..* | Mantiene registro |
+| Screen | Boton | Composición | 0..* | UI interna |
+| Menu/Login/Register/Profile/Game | AuthManager | Uso | 0..1 | Operaciones sesión |
+| ProfileScreen | UsuarioRepository | Uso | 1 | Consultas historial |
+| AuthManager | UsuarioRepository | Composición | 1 | Encapsulado interno |
+| UsuarioRepository | Database | Asociación | 1 | Acceso persistencia |
+| AuthManager | Database | Uso indirecto | 1 | A través repositorio |
+| GameScreen | HandDetector | Uso | 1 | Obtención gestos |
+| GameScreen | GameLogic | Uso | 1 | Reglas juego |
+| GameScreen | Score | Composición | 1 | Estado partida |
+| GameScreen | SoundManager | Uso | 0..1 | Efectos |
+| GameScreen | ResourceManager | Uso | 1 | Sprites |
+| GameLogic | AIStrategy | Strategy | 1 | Polimorfismo |
+| AIStrategy | RandomStrategy | Herencia | 1 | Implementación concreta |
+| ResourceManager | Pantallas | Uso | 1..* | Fondos/imagenes |
+| Boton | SoundManager | Asociación opcional | 0..1 | Sonido de clic |
+
+---
+
+## Patrones Usados
+| Patrón | Participantes | Justificación |
+|--------|--------------|---------------|
+| Singleton | ResourceManager, AuthManager | Instancia única compartida para recursos / sesión |
+| Strategy | AIStrategy, RandomStrategy, GameLogic | Permite futuras estrategias IA |
+| State | ScreenManager + subclases Screen | Estados de la aplicación como objetos |
+| Template Method | Screen.run() + hooks enter/exit/update/render | Define esqueleto del bucle de pantalla |
+| Repository | UsuarioRepository + Database | Abstrae persistencia y hashing |
+| Facade (parcial) | GameApp | Simplifica inicio y ciclo principal |
+
+---
+
+## Observaciones de Consistencia
+- `Boton` usa opcionalmente `SoundManager`; no mantiene referencia a otros gestores.
+- Recursos compartidos se pasan por diccionario `resources` evitando acoplamiento fuerte entre pantallas y gestores.
+- `AuthManager` y `ResourceManager` protegen inicialización múltiple mediante banderas internas en `__init__`.
+- `GameScreen` concentra mayor complejidad: separamos métodos internos para mejorar mantenibilidad.
+
+## Posibles Mejoras Futuras (No implementadas)
+- Inyectar `AIStrategy` distinta (por ejemplo adaptativa) sin modificar `GameLogic`.
+- Extraer HUD en componente dedicado (por separación de responsabilidades).
+- Añadir fábrica para pantallas reduciendo código de inicialización en `ScreenManager`.
+- Implementar capa de servicio entre `AuthManager` y `UsuarioRepository` para validar reglas de negocio.
+
+Fin del documento.
+
